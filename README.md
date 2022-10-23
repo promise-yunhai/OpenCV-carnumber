@@ -16,10 +16,3 @@
 
 > `pip install opencv-python`
 
-## 图片展示
-
-![首界面](pic/01.png)
-
-![识别结果](pic/02.jpg)
-
-![图像处理过程](pic/035.png)
