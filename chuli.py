@@ -4,8 +4,8 @@ from PIL import Image, ImageTk
 import img_math,cv2,os
 
 class App(ttk.Frame):
-    width = 750   #宽
-    heigh = 400   #高
+    width = 750   
+    heigh = 400   
     def __init__(self, win):
         ttk.Frame.__init__(self,win)
         self.pack()
@@ -27,11 +27,11 @@ class App(ttk.Frame):
 
         
 
-        #显示分离后的车牌字符
+        #Display of separated license plate characters
         frame_5111 = ttk.Frame(self)
         frame_5111.grid(column=1, row=1)
 
-        #显示分离后的车牌字符
+        #Display of separated license plate characters
         frame_5 = ttk.Frame(frame_5111)
         frame_5.pack()
         frame_5222 = ttk.Frame(frame_5111)
