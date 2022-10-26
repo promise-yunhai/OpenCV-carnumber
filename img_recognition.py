@@ -2,11 +2,11 @@ import cv2
 import numpy as np
 from numpy.linalg import norm
 
-SZ = 20  # 训练图片长宽
-MAX_WIDTH = 1000  # 原始图片最大宽度
-Min_Area = 2000  # 车牌区域允许最大面积
+SZ = 20  # Training picture length and width
+MAX_WIDTH = 1000  # Maximum width of original picture
+Min_Area = 2000  # Maximum allowable area of license plate area
 PROVINCE_START = 1000
-# 来自opencv的sample，用于svm训练
+# from  pencv   sample，use to  svm training
 # def deskew(img):
 #     m = cv2.moments(img)
 #     if abs(m['mu02']) < 1e-2:
@@ -17,7 +17,7 @@ PROVINCE_START = 1000
 #     return img
 
 
-# # 来自opencv的sample，用于svm训练
+
 def preprocess_hog(digits):
     samples = []
     for img in digits:
