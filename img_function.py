@@ -5,9 +5,9 @@ import numpy as np
 import img_math 
 import img_recognition 
 
-SZ = 20  # 训练图片长宽
-MAX_WIDTH = 1000  # 原始图片最大宽度
-Min_Area = 2000  # 车牌区域允许最大面积
+SZ = 20  # Training picture length and width
+MAX_WIDTH = 1000  # Maximum width of original image
+Min_Area = 2000  # Maximum area allowed for license plate area
 PROVINCE_START = 1000
 
 
@@ -27,11 +27,11 @@ class SVM(StatModel):
         self.model.setKernel(cv2.ml.SVM_RBF)
         self.model.setType(cv2.ml.SVM_C_SVC)
 
-    # # 训练svm
+    # # training svm
     # def train(self, samples, responses):
     #     self.model.train(samples, cv2.ml.ROW_SAMPLE, responses)
 
-    # 字符识别
+    # Character Recognition
     def predict(self, samples):
         r = self.model.predict(samples)
         return r[1].ravel()
@@ -42,9 +42,9 @@ class CardPredictor:
         pass
 
     def train_svm(self):
-        # 识别英文字母和数字
+        # Identify letters and numbers
         self.model = SVM(C=1, gamma=0.5)
-        # 识别中文
+        # Recognize Chinese
         self.modelchinese = SVM(C=1, gamma=0.5)
         if os.path.exists("svm.dat"):
             self.model.load("svm.dat")
@@ -57,58 +57,60 @@ class CardPredictor:
         :return:已经处理好的图像文件 原图像文件
         """
         if type(car_pic_file) == type(""):
-            img = img_math.img_read(car_pic_file)   #读取文件
+            img = img_math.img_read(car_pic_file)   #read file
         else:
             img = car_pic_file
 
-        pic_hight, pic_width = img.shape[:2]  #取彩色图片的高、宽
+        pic_hight, pic_width = img.shape[:2]  #Take the height and width of the color picture
         if pic_width > MAX_WIDTH:
             resize_rate = MAX_WIDTH / pic_width
-            # 缩小图片
+            # Zoom in on the picture
             img = cv2.resize(img, (MAX_WIDTH, int(pic_hight * resize_rate)), interpolation=cv2.INTER_AREA)
-        # 关于interpolation 有几个参数可以选择:
-        # cv2.INTER_AREA - 局部像素重采样，适合缩小图片。
-        # cv2.INTER_CUBIC和 cv2.INTER_LINEAR 更适合放大图像，其中INTER_LINEAR为默认方法。
+        # about ‘interpolation’ There are several parameters to choose from:
+        # cv2.INTER_AREA - Partial pixel resampling, suitable for shrinking images.
+        # cv2.INTER_CUBIC和 cv2.INTER_LINEAR Better for enlarging images，INTER_LINEAR  Default Method。
 
         img = cv2.GaussianBlur(img, (5, 5), 0)
-        # 高斯滤波是一种线性平滑滤波，对于除去高斯噪声有很好的效果
-        # 0 是指根据窗口大小（ 5,5 ）来计算高斯函数标准差
+        # Gaussian filtering is a linear smoothing filter, which is very effective in removing Gaussian noise
+        # 0 is the size of the window according to（ 5,5 ）accumulate Gaussian function S方
         
 
         oldimg = img
-        # 转化成灰度图像
-        # 转换颜色空间 cv2.cvtColor
+        # Conversion to grayscale images
+        # Convert color space cv2.cvtColor
         # BGR ---> Gray  cv2.COLOR_BGR2GRAY
         # BGR ---> HSV  cv2.COLOR_BGR2HSV
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
         cv2.imwrite("tmp/img_gray.jpg", img)
         
-        #ones()返回一个全1的n维数组 
+        #ones()Returns an all-1 n-dimensional array 
         Matrix = np.ones((20, 20), np.uint8)  
 
-        # 开运算:先进性腐蚀再进行膨胀就叫做开运算。它被用来去除噪声。 cv2.MORPH_OPEN        
+        # Open operation:Advanced erosion followed by expansion is called open operation. It is used to remove noise。 cv2.MORPH_OPEN        
         img_opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, Matrix)
 
-        # 图片叠加与融合
+        # Image overlay and fusion
         # g (x) = (1 − α)f0 (x) + αf1 (x)   a→（0，1）不同的a值可以实现不同的效果
         img_opening = cv2.addWeighted(img, 1, img_opening, -1, 0)
         # cv2.imwrite("tmp/img_opening.jpg", img_opening)
-        # 创建20*20的元素为1的矩阵 开操作，并和img重合
+        # create 20*20 elements 1 Matrix Open Operation，and img  overlay
 
 
-        # Otsu’s二值化
+       
         ret, img_thresh = cv2.threshold(img_opening, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # Canny 边缘检测
+        # Canny Edge detection
+        #Larger threshold 2 is used to detect obvious edges in the image Generally the detection is not so perfect, and the edges are detected intermittently
         # 较大的阈值2用于检测图像中明显的边缘  一般情况下检测的效果不会那么完美，边缘检测出来是断断续续的
         # 较小的阈值1用于将这些间断的边缘连接起来
+        #A smaller threshold of 1 is used to connect these interrupted edges
         img_edge = cv2.Canny(img_thresh, 100, 200)
         cv2.imwrite("tmp/img_edge.jpg", img_edge)
 
         Matrix = np.ones((4, 19), np.uint8)
-        # 闭运算:先膨胀再腐蚀
+        # Closed operation:Expansion before corrosion
         img_edge1 = cv2.morphologyEx(img_edge, cv2.MORPH_CLOSE, Matrix)
-        # 开运算
+        #open operation
         img_edge2 = cv2.morphologyEx(img_edge1, cv2.MORPH_OPEN, Matrix)
         cv2.imwrite("tmp/img_xingtai.jpg", img_edge2)
         return img_edge2, oldimg
@@ -119,7 +121,7 @@ class CardPredictor:
         :param oldimg: 原图像文件
         :return: 识别到的字符、定位的车牌图像、车牌颜色
         """
-        pic_hight, pic_width = img_contours.shape[:2] # #取彩色图片的高、宽
+        pic_hight, pic_width = img_contours.shape[:2] # #Take the height and width of the color picture
 
         lower_blue = np.array([100, 110, 110])
         upper_blue = np.array([130, 255, 255])
@@ -130,23 +132,23 @@ class CardPredictor:
 
         # BGR ---> HSV
         hsv = cv2.cvtColor(filename, cv2.COLOR_BGR2HSV)
-        # 利用cv2.inRange函数设阈值，去除背景部分
-        # 参数1：原图
-        # 参数2：图像中低于值，图像值变为0
-        # 参数3：图像中高于值，图像值变为0
+        # Use the cv2.inRange function to set the threshold value and remove the background part
+        # Parameter 1: the original image
+        # Parameter 2: below the value in the image, the image value becomes 0
+        # Parameter 3: Above the value in the image, the image value becomes 0
         mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
         mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
         mask_green = cv2.inRange(hsv, lower_yellow, upper_green)
 
-        # 图像算术运算  按位运算 按位操作有： AND， OR， NOT， XOR 等
+        # Image arithmetic operations Bitwise operations Bitwise operations are： AND， OR， NOT， XOR 等
         output = cv2.bitwise_and(hsv, hsv, mask=mask_blue + mask_yellow + mask_green)
-        # 根据阈值找到对应颜色
+        # Find the corresponding color according to the threshold value
 
         output = cv2.cvtColor(output, cv2.COLOR_BGR2GRAY)
         Matrix = np.ones((20, 20), np.uint8)
-        #使用一个 20x20 的卷积核
-        img_edge1 = cv2.morphologyEx(output, cv2.MORPH_CLOSE, Matrix)  #闭运算
-        img_edge2 = cv2.morphologyEx(img_edge1, cv2.MORPH_OPEN, Matrix) #开运算
+        #use 20x20  
+        img_edge1 = cv2.morphologyEx(output, cv2.MORPH_CLOSE, Matrix)  #close operation
+        img_edge2 = cv2.morphologyEx(img_edge1, cv2.MORPH_OPEN, Matrix) #open operation 
 
         card_contours = img_math.img_findContours(img_edge2)
         card_imgs = img_math.img_Transform(card_contours, oldimg, pic_width, pic_hight)
@@ -167,7 +169,8 @@ class CardPredictor:
                 except:
                     print("gray转换失败")
 
-                # 黄、绿车牌字符比背景暗、与蓝车牌刚好相反，所以黄、绿车牌需要反向
+                # Yellow and green license plate characters are darker than the background, and the blue plate is just the opposite,
+                #so the yellow and green plates need to be reversed
                 if color == "green" or color == "yello":
                     gray_img = cv2.bitwise_not(gray_img)
                 ret, gray_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -181,19 +184,19 @@ class CardPredictor:
                 if len(wave_peaks) == 0:
                     # print("peak less 0:")
                     continue
-                # 认为水平方向，最大的波峰为车牌区域
+                # Considering the horizontal direction, the largest wave crest is the license plate area
                 wave = max(wave_peaks, key=lambda x: x[1] - x[0])
 
                 
                 gray_img = gray_img[wave[0]:wave[1]]
-                # 查找垂直直方图波峰
+                # Find vertical histogram crests
                 row_num, col_num = gray_img.shape[:2]
-                # 去掉车牌上下边缘1个像素，避免白边影响阈值判断
+                # Remove 1 pixel from the top and bottom edges of the license plate to avoid white edges affecting the threshold judgment
                 gray_img = gray_img[1:row_num - 1]
                 y_histogram = np.sum(gray_img, axis=0)
                 y_min = np.min(y_histogram)
                 y_average = np.sum(y_histogram) / y_histogram.shape[0]
-                y_threshold = (y_min + y_average) / 5  # U和0要求阈值偏小，否则U和0会被分成两半
+                y_threshold = (y_min + y_average) / 5  # U and 0  Requirement threshold is small，else U and 0 wil Splited into two halves
                 wave_peaks = img_math.find_waves(y_threshold, y_histogram)
                 if len(wave_peaks) < 6:
                     # print("peak less 1:", len(wave_peaks))
@@ -201,11 +204,11 @@ class CardPredictor:
 
                 wave = max(wave_peaks, key=lambda x: x[1] - x[0])
                 max_wave_dis = wave[1] - wave[0]
-                # 判断是否是左侧车牌边缘
+                # judement it is the edge of the left license plate
                 if wave_peaks[0][1] - wave_peaks[0][0] < max_wave_dis / 3 and wave_peaks[0][0] == 0:
                     wave_peaks.pop(0)
 
-                # 组合分离汉字
+                # Combination of separated Chinese characters
                 cur_dis = 0
                 for i, wave in enumerate(wave_peaks):
                     if wave[1] - wave[0] + cur_dis > max_wave_dis * 0.6:
@@ -227,14 +230,14 @@ class CardPredictor:
                     continue
                 # print(wave_peaks)
                 
-                # wave_peaks  车牌字符 类型列表 包含7个（开始的横坐标，结束的横坐标）
+                # wave_peaks  License plate characters Type list Contains 7 (start of horizontal coordinate, end of horizontal coordinate)
 
 
 
                 part_cards = img_math.seperate_card(gray_img, wave_peaks)
 
                 for i, part_card in enumerate(part_cards):
-                    # 可能是固定车牌的铆钉
+                    # May be the rivets that fix the license plate
 
                     if np.mean(part_card) < 255 / 5:
                         # print("a point")
@@ -253,9 +256,9 @@ class CardPredictor:
                     else:
                         resp = self.model.predict(part_card)
                         charactor = chr(resp[0])
-                    # 判断最后一个数是否是车牌边缘，假设车牌边缘被认为是1
+                    # judgment the last number is the edge of the license plate, assuming that the edge of the license plate is considered to be 1
                     if charactor == "1" and i == len(part_cards) - 1:
-                        if part_card_old.shape[0] / part_card_old.shape[1] >= 7:  # 1太细，认为是边缘
+                        if part_card_old.shape[0] / part_card_old.shape[1] >= 7:  # 1 Too fine, think edge
                             continue
                     predict_result.append(charactor)
                     predict_str = "".join(predict_result)
@@ -264,4 +267,4 @@ class CardPredictor:
                 card_color = color
                 break
         cv2.imwrite("tmp/img_caijian.jpg", roi)
-        return predict_str, roi, card_color  # 识别到的字符、定位的车牌图像、车牌颜色
+        return predict_str, roi, card_color  # Recognized characters, positioned license plate image, license plate color
